@@ -6,7 +6,7 @@ mkdir -p ./myapi
 ```
 <img width="1049" height="633" alt="image" src="https://github.com/user-attachments/assets/1e267c71-730c-40a9-bc13-00c1b336accb" />
 
-## 2. tạo file ./myapi/app.py sử dụng Python + Flask để làm gì đó funny
+## 2. Tạo file ./myapi/app.py sử dụng Python + Flask để làm gì đó funny
 - Tạo 1 file
 ```
 nano ./myapi/app.py
@@ -17,48 +17,39 @@ nano ./myapi/app.py
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
+app.config['JSON_AS_ASCII'] = False  # Hiển thị tiếng Việt chuẩn
 
-@app.route('/bmi', methods=['GET'])
-def tinh_bmi():
-    chieu_cao = request.args.get('chieu_cao')
-    can_nang = request.args.get('can_nang')
+@app.route('/tinh-phi', methods=['GET'])
+def tinh_phi():
+    # Lấy giá trị từ tham số "gia_tri"
+    gia_tri_input = request.args.get('gia_tri')
 
-    if chieu_cao is None or can_nang is None:
-        return jsonify({"error": "Cần cung cấp 'chieu_cao' (m) và 'can_nang' (kg)"}), 400
+    # Kiểm tra nhập liệu
+    if gia_tri_input is None:
+        return jsonify({"error": "Vui lòng cung cấp tham số 'gia_tri'"}), 400
 
     try:
-        h = float(chieu_cao)
-        w = float(can_nang)
+        # Chuyển sang số
+        gia_tri = float(gia_tri_input)
 
-        if h <= 0 or w <= 0:
-            return jsonify({"error": "Chiều cao và cân nặng phải > 0"}), 400
-
-        bmi = w / (h * h)
-
-        # Phân loại BMI
-        if bmi < 18.5:
-            loai = "Gầy"
-        elif bmi < 25:
-            loai = "Bình thường"
-        elif bmi < 30:
-            loai = "Thừa cân"
-        else:
-            loai = "Béo phì"
+        # Tính phí dịch vụ 5%
+        phi = gia_tri * 0.05
+        tong = gia_tri + phi
 
         return jsonify({
-            "chieu_cao": h,
-            "can_nang": w,
-            "bmi": round(bmi, 2),
-            "phan_loai": loai
+            "gia_tri_ban_dau": gia_tri,
+            "phi_dich_vu": "5%",
+            "so_tien_phi": phi,
+            "tong_thanh_toan": tong
         })
 
     except ValueError:
-        return jsonify({"error": "Dữ liệu nhập phải là số"}), 400
+        return jsonify({"error": "Giá trị 'gia_tri' phải là số hợp lệ"}), 400
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=9630)
 ```
-<img width="1199" height="768" alt="image" src="https://github.com/user-attachments/assets/fdd1be90-34e1-4aba-8788-52c85802e968" />
+<img width="971" height="619" alt="image" src="https://github.com/user-attachments/assets/1015c56a-d0e3-4434-9a51-c425718b8639" />
 
 ## 3. tạo file ./myapi/requirements.txt chứa các thư viện mà app.py sử dụng
 ```
@@ -125,13 +116,13 @@ docker compose ps
 
 - Test myapi trực tiếp (không qua Nginx)
 ```
-curl "http://localhost:9630/bmi?chieu_cao=1.7&can_nang=65"
+curl "http://localhost:9630/tinh-phi?gia_tri=100"
 ```
 - Kết quả kỳ vọng
 ```
-{"bmi":22.49,"can_nang":65.0,"chieu_cao":1.7,"phan_loai":"B\u00ecnh th\u01b0\u1eddng"}
+{"gia_tri_ban_dau":100.0,"phi_dich_vu":"5%","so_tien_phi":5.0,"tong_thanh_toan":105.0}
 ```
-<img width="1923" height="816" alt="image" src="https://github.com/user-attachments/assets/73ef85dc-db6a-4200-aec7-60f61dd4ba9e" />
+<img width="1284" height="706" alt="image" src="https://github.com/user-attachments/assets/1da823e9-1200-4cce-ba40-ce4aab738906" />
 
 ## 6. Sửa đổi nginx/nginx.conf để /api trỏ tới service myapp cổng 9630
 ```
@@ -139,20 +130,28 @@ nano ~/myapp/nginx/nginx.conf
 ```
 - Thay block location /api thành:
 ```
-location /api {
-  proxy_pass http://myapi:9630/tinh-vat;
-  proxy_set_header Host $host;
-  proxy_set_header X-Real-IP $remote_addr;
-  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-  proxy_set_header X-Forwarded-Proto $scheme;
+        location /api/ {
+            proxy_pass http://127.0.0.1:9630/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
 }
 ```
-<img width="810" height="558" alt="image" src="https://github.com/user-attachments/assets/51785f3e-4a4f-412a-8f75-baa032005395" />
+<img width="865" height="542" alt="image" src="https://github.com/user-attachments/assets/9bb15bb9-8d78-4afd-b599-b4d39676c160" />
 
 ```
 docker compose restart nginx
 ```
 
+### Kiểm tra
+- Gọi API thông qua Nginx (port 80):
+```
+curl -i "http://localhost/api/tinh-phi?gia_tri=100"
+```
+<img width="1922" height="730" alt="image" src="https://github.com/user-attachments/assets/90db118b-58d7-485c-931d-5a091394d36f" />
 
 
 
